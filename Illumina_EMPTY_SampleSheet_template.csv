@@ -1,0 +1,16 @@
+[Header],,,,,,,
+IEMFileVersion,4,,,,,,
+Date,30.05.2017,,,,,,
+Workflow,GenerateFASTQ,,,,,,
+Application,NextSeq FASTQ Only,,,,,,
+Assay,TruSeq RNA,,,,,,
+Description,,,,,,,
+Chemistry,Default,,,,,,
+,,,,,,,
+[Reads],,,,,,,
+,,,,,,,
+[Settings],,,,,,,
+,,,,,,,
+[Data],,,,,,,
+
+Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Description

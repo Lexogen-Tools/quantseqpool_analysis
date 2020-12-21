@@ -1,0 +1,13 @@
+name: QuantSeqPool
+channels:
+- conda-forge
+- bioconda 
+- defaults
+dependencies:
+- idemux
+- samtools=1.9
+- cutadapt=2.5
+- star=2.7.5a
+- umi_tools=1.0.1
+- subread=1.6.4
+- gawk=5.0.0
