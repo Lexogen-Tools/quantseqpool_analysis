@@ -1,7 +1,7 @@
 # QuantSeqPoolWF
 **This analysis script is implemented as a bash routine and is intended to work in combination with Lexogen's QuantSeq-Pool Sample-Barcoded 3′ mRNA-Seq Library Prep Kit for Illumina**
 
-QuantSeq-Pool is the optimal solution for gene expression profiling for large screening projects using sample barcoding, early pooling, and batch processing of up to 96 samples in one reaction providing a workflow that is easily scalable for multiplexing up to 36,864 samples. Each sample is identified via one of 96 Lexogen i1 sample indices (for further information please visit https://www.lexogen.com/quantseq-pool-sample-barcoded-3mrna-sequencing/). The analysis script extracts the samples according to their sample indicies from an pool of reads in a UDI barcode combination and is then further processed with bioinformatics tools to trim the raw data, align the reads and count the expressed genes.
+QuantSeq-Pool is the optimal solution for gene expression profiling for large screening projects using sample barcoding, early pooling, and batch processing of up to 96 samples in one reaction providing a workflow that is easily scalable for multiplexing up to 36,864 samples. Each sample is identified via one of 96 Lexogen i1 sample indices (for further information please visit https://www.lexogen.com/quantseq-pool-sample-barcoded-3mrna-sequencing/). The analysis script extracts the samples according to their sample indicies from a pool of reads in a UDI barcode combination. It, subsequently, trims and aligns the data and counts the expressed genes.
 
 ## Requirements
 The script [QuantSeqPoolAnalysis.sh](QuantSeqPoolAnalysis.sh) uses the following software tools and scripts in its routine:
@@ -26,9 +26,9 @@ Provided you have the required tools installed, cloned the content of the git re
 ```
 ./conductQuantSeqPoolAnalysis.sh -g path/to/reference/annotation.gtf -d path/to/STAR/genome --rawR1 path/to/R1.fastq.gz --rawR2 path/to/R2.fastq.gz -s path/to/sample-sheet.csv -o path/to/output/directory -t [nr of parallel jobs]
 ```
-**path/to/reference/annotation.gtf** is the path to an reference annotation in Ensembl-style gtf format (gff version 2). The file contains the annotations of features on a reference genome. The annotation has to match the reference that was used to generate the STAR genome.
+**path/to/reference/annotation.gtf** is the path to a reference annotation in Ensembl-style gtf format (gff version 2). The file contains the annotations of features on a reference genome. The annotation has to match the reference that was used to generate the STAR genome.
 
-**path/to/STAR/genome** is a pre-built STAR genome reference. This reference is supposed to match the organism that is to be analyzed with the the experiment.
+**path/to/STAR/genome** is a pre-built STAR genome reference. This reference is supposed to match the organism that is to be analyzed with the experiment.
 
 **path/to/demultiplexed_data/R1.fastq.gz** is the path to a gzipped fastq file, which contains the first read of the read-pairs of the sample(s) of this experiment.
 
@@ -39,6 +39,7 @@ Provided you have the required tools installed, cloned the content of the git re
 **path/to/output_directory** is the path to a directory to write intermediate and final analysis results.
 
 **[nr of parallel jobs]** is the number of threads which are allowed for each tool call benefits from threading.
+
 ## The analysis routine
 The script is a bash routine that processes a pair of i7/i5 demultiplexed, gzipped fastq files. The script allows to analyze up to 96 samples within a single file pair.
 
@@ -63,7 +64,8 @@ The analysis script will then perform demultiplexing of i7/i5 and i1 indices tog
 $ umi_tools extract --extract-method=string --bc-pattern X --bc-pattern2 NNNNNNNNNN -L path/to/sample/extraction_log -S path/to/output/extracted/sample/R1.fastq.gz \
 > -I path/to/output/fastq/raw/R1.fastq.gz --read2-in=path/to/output/fastq/sample/R2.fastq.gz --read2-out=/dev/null
 ```
-umi_tools extracts the 10N long UMI sequence from the second read in the read pair and writes this information into the fastq read ID (sequence ID) of the first read. The second read has no more useable information and is not used past this analysis step.
+umi_tools extracts the 10N long UMI sequence from the second read in the read pair and writes this information into the fastq read ID (sequence ID) of the first read. Since the second read consists of the UMI only, it is not used in the steps following UMI extraction.
+
 ### Trimming with cutadapt
 ```
 $ cutadapt --quiet -m 20 -O 20 -a "polyA=A{20}" -a "QUALITY=G{20}" -n 2 path/to/output/extracted/sample/R1.fastq.gz | \
@@ -80,13 +82,14 @@ $ STAR --runThreadN ${nrThreads} --readFilesCommand zcat --genomeDir /path/to/st
 > --limitIObufferSize 200000000 --outSAMattributes NH HI NM MD --outSAMtype BAM SortedByCoordinate --outFileNamePrefix path/to/output/alignment/sample/ \
 > --limitBAMsortRAM 2000000000
 ```
-The alignment with STAR requires a pre-built STAR aligner genome. If you do not have such genome for your reference, but you have the **genomic** reference sequences and the annotation of your target species you can use the STAR aligner to generate a genome with a call like
+The alignment with STAR requires a pre-built STAR aligner genome. If you do not have such a genome for your reference, but you have the **genomic** reference sequences and the annotation of your target species you can use the STAR aligner to generate a genome with a call like
 ```
 $ mkdir -p path/to/star/genome && STAR --runMode genomeGenerate --runThreadN 10 --genomeDir /path/to/star/genome --genomeFastaFiles /path/to/reference/sequences/multifasta.fa \
 > --sjdbGTFfile /path/to/reference/annotation.gtf --sjdbOverhang 99
 ```
 To ensure that the STAR genome version matches the version of the STAR binary of this script, we recommend to create the genome index files with the STAR binary that was listed in the conda environment. Please be aware that depending on the size of the reference you will require a significant amount of memory to properly run the alignment (about 30G of RAM on the human reference genome).
 Further, if the target organism does not have ordinary splicing events you should omit the arguments --sjdbGTFfile and --sjdbOverang.
+
 ### Deduplication with umi_tools
 ```
 $ umi_tools dedup -I path/to/output/alignment/sample/Aligned.sortedByCoord.out.bam -S path/to/output/deduplicated/sample/Aligned.sortedByCoord.out.bam \
