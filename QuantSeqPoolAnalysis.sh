@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
-# this script assumes that the untrimmed, unprocessed fastq file are available as ./ ${sample} / R1.fastq.gz in a "fastq" sub-directory in the baseDir directory
-# in detail, the result of the bash command "ls <baseDir>/fastq" should contain the name of the sample that is referenced with -s. 
+# this script assumes that the untrimmed, unprocessed fastq file are available as ./ ${sample} / R1.fastq.gz in a "fastq" sub-directory in the outDir directory
+# in detail, the result of the bash command "ls <outDir>/fastq" should contain the name of the sample that is referenced with -s. 
 
 fastq_raw=fastq
 fastq_extracted=extracted
 fastq_trimmed=trimmed
+alignment=alignment
 alignment_deduplicated=deduplicated
 
 # UMI is fixed at N10
 
-usage() { echo "Usage: $0 [-s|--sample <sampleName>] [-g|--gtfFile <gtfFile>] [-d|--starGenomeDir <dir>] (Optional: [-b|--baseDir <dir>] [-f|--feature <counting_feature>] [-a|--attribute <grouping attribute>] [-t|--threads] <# of threads>)" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-s|--sample <sampleName>] [-g|--gtfFile <gtfFile>] [-d|--starGenomeDir <dir>] ([-f|--feature <counting_feature>] [-a|--attribute <grouping attribute>] [-t|--threads] <# of threads>)" 1>&2; exit 1; }
 
 my_needed_commands="umi_tools samtools cutadapt STAR gawk featureCounts"
 
@@ -27,12 +28,12 @@ if ((missing_counter > 0)); then
   exit 1
 fi
 
-baseDir=$(pwd)"/"
+outDir=$(pwd)"/"
 counting_feature="exon"
 identifying_attribute="gene_id"
 nrThreads=1
 
-OPT=$(getopt -o s:g:d:u:b:f:a:t: --long sampleName:,gtfFile:,starGenomeDir:,baseDir:,feature:,attribute:,threads:, -- "$@")
+OPT=$(getopt -o s:g:d:u:f:a:t: --long sampleName:,gtfFile:,starGenomeDir:,feature:,attribute:,threads:, -- "$@")
 
 eval set -- "$OPT"
 
@@ -41,7 +42,6 @@ while true; do
     -s | --sampleName ) sample="$2"; shift 2;;
     -g | --gtfFile ) gtfFile="$2"; shift 2;;
     -d | --starGenomeDir ) genomeDir="$2"; shift 2;;
-    -b | --baseDir ) baseDir="$2"; shift 2;;
     -f | --feature ) counting_feature="$2"; shift 2;;
     -a | --attribute ) identifying_attribute="$2"; shift 2;;
     -t | --threads ) nrThreads="$2"; shift 2;;
@@ -60,9 +60,6 @@ done
 
 genomeDir=$(readlink -f ${genomeDir})
 gtfFile=$(readlink -f ${gtfFile})
-baseDir=$(readlink -f ${baseDir})
-
-pushd $baseDir
 
 # UMI extract
 echo "extracting N10 UMIs from read 2"
@@ -76,30 +73,31 @@ cutadapt -m 20 -O 20 -a "polyA=A{20}" -a "QUALITY=G{20}" -n 2 ${fastq_extracted}
 
 # alignment
 echo "alignment"
-mkdir -p alignment/${sample}/
-STAR --runThreadN ${nrThreads} --readFilesCommand zcat --genomeDir ${genomeDir} --readFilesIn ${fastq_trimmed}/${sample}/R1.fastq.gz --outFilterType BySJout --outFilterMultimapNmax 200 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.6 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --limitOutSJcollapsed 5000000 --limitIObufferSize 200000000 --outSAMattributes NH HI NM MD --outSAMtype BAM SortedByCoordinate --outFileNamePrefix alignment/${sample}/ --limitBAMsortRAM 2000000000
+
+# NOTE: the star aligner has a malfunction for some version on some systems, using more than 18 threads results in STAR aborting.
+nr_threads_safety_star=$(awk '$1<18{print $1} ; $1>=18{print "18"}' <(echo $nrThreads))
+mkdir -p ${alignment}/${sample}/
+STAR --runThreadN ${nr_threads_safety_star} --readFilesCommand zcat --genomeDir ${genomeDir} --readFilesIn ${fastq_trimmed}/${sample}/R1.fastq.gz --outFilterType BySJout --outFilterMultimapNmax 200 --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 --outFilterMismatchNoverLmax 0.6 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --limitOutSJcollapsed 5000000 --limitIObufferSize 200000000 --outSAMattributes NH HI NM MD --outSAMtype BAM SortedByCoordinate --outFileNamePrefix ${alignment}/${sample}/ --limitBAMsortRAM 2000000000
 
 # index
-samtools index -@ ${nrThreads} alignment/${sample}/"Aligned.sortedByCoord.out.bam" 
+samtools index -@ ${nrThreads} ${alignment}/${sample}/"Aligned.sortedByCoord.out.bam" 
 
 # collapsing
 echo "deduplication"
 mkdir -p deduplicated/${sample}/
-umi_tools dedup -I alignment/${sample}/"Aligned.sortedByCoord.out.bam" -S deduplicated/${sample}/"Aligned.sortedByCoord.out.bam" --multimapping-detection-method=NH --output-stats=deduplicated/${sample}/deduplicated.txt --log=deduplicated/${sample}/deduplication.log
+umi_tools dedup -I ${alignment}/${sample}/"Aligned.sortedByCoord.out.bam" -S deduplicated/${sample}/"Aligned.sortedByCoord.out.bam" --multimapping-detection-method=NH --output-stats=deduplicated/${sample}/deduplicated.txt --log=deduplicated/${sample}/deduplication.log
 
 tmpdir=$(mktemp -d ${sample}XXXX)
 
 # counting unique alignments
 echo "counting"
 mkdir -p counting/${sample}/
-featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/unique.count ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/unique.count"}' ${tmpdir}/unique.count && rm ${tmpdir}/unique.count*
+featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/unique.count ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/unique.tsv"}' ${tmpdir}/unique.count && rm ${tmpdir}/unique.count*
 
 # counting all alignments, including multimapping reads
-featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/multimapper.count -M ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/multimapper.count"}' ${tmpdir}/multimapper.count && rm ${tmpdir}/multimapper.count*
+featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/multimapper.count -M ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/all.tsv"}' ${tmpdir}/multimapper.count && rm ${tmpdir}/multimapper.count*
 
 # counting all alignments, including multimapping reads, but divide counts by the number of multimappers
-featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/multimapper_avg.count -M --fraction ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/multimapper_avg.count"}' ${tmpdir}/multimapper_avg.count && rm ${tmpdir}/multimapper_avg.count*
+featureCounts -s 1 -T ${nrThreads} -t ${counting_feature} -g ${identifying_attribute} -a ${gtfFile} -o ${tmpdir}/multimapper_avg.count -M --fraction ${alignment_deduplicated}/${sample}/"Aligned.sortedByCoord.out.bam" &&  awk 'NR>=3{printf("%s\t%s\n",$1,$NF) > "counting/'${sample}'/all_avg-multimapper.tsv"}' ${tmpdir}/multimapper_avg.count && rm ${tmpdir}/multimapper_avg.count*
 
 rm -d ${tmpdir} # NOTE: this step fails if the directory is not empty, for instance if the previous commands did not remove the temporary files due to some kind of error
-
-popd
