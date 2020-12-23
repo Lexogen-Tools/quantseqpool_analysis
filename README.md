@@ -24,7 +24,7 @@ $ conda env create -f /path/to/environment.yml && conda activate QuantSeqPool
 ## How to run this script
 Provided you have the required tools installed, cloned the content of the git repository onto your machine and changed into this cloned directory, you can start the script with a call like
 ```
-./conductQuantSeqPoolAnalysis.sh -g path/to/reference/annotation.gtf -d path/to/STAR/genome --rawR1 path/to/R1.fastq.gz --rawR2 path/to/R2.fastq.gz -s path/to/sample-sheet.csv -o path/to/output/directory -t 18
+./conductQuantSeqPoolAnalysis.sh -g path/to/reference/annotation.gtf -d path/to/STAR/genome --rawR1 path/to/R1.fastq.gz --rawR2 path/to/R2.fastq.gz -s path/to/sample-sheet.csv -o path/to/output/directory -t [nr of parallel jobs]
 ```
 **path/to/reference/annotation.gtf** is the path to an reference annotation in Ensembl-style gtf format (gff version 2). The file contains the annotations of features on a reference genome. The annotation has to match the reference that was used to generate the STAR genome.
 
