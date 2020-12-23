@@ -113,5 +113,5 @@ To verify that the pipeline has been properly installed, the gzipped fastq file 
 $ ./conductQuantSeqPoolAnalysis.sh -g path/to/reference/annotation.gtf -d path/to/STAR/genome --rawR1 Resources/fastq/R1.fastq.gz --rawR2 Resources/fastq/R2.fastq.gz -s sample-sheet.csv -t 18 -o test
 ```
 should result in summary files similar to the ones you find in [Resources/](Resources/). The example summary files were generated based on these fastq files and by using the reference genome hsa_GRCh38.102 from Ensembl:
-- gtf (ftp://ftp.ensembl.org/pub/release-102/gtf/homo_sapiens/)
-- fasta (ftp://ftp.ensembl.org/pub/release-102/fasta/homo_sapiens/)
+- gtf ( ftp://ftp.ensembl.org/pub/release-102/gtf/homo_sapiens/ ) 
+- fasta ( ftp://ftp.ensembl.org/pub/release-102/fasta/homo_sapiens/ )
