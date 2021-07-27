@@ -63,7 +63,7 @@ done
 
 # summary of counts
 for ctype in unique all all_avg-multimapper ; do
-(echo -e "id\t"${samples[@]} ; paste counting/*/${ctype}.tsv | awk '{printf "%s",$1 ; for (ii=2;ii<=NF;ii=ii+2){printf "\t%s",$ii} ; printf "\n" } ') > summary_${ctype}.tsv
+	(echo -e "id "${samples[@]} | sed 's/ /\t/g'; paste $(for s in ${samples[@]}; do ls counting/$s/${ctype}.tsv; done) | awk '{printf "%s",$1 ; for (ii=2;ii<=NF;ii=ii+2){printf "\t%s",$ii} ; printf "\n" }') > summary_${ctype}.tsv
 done
 
 popd
