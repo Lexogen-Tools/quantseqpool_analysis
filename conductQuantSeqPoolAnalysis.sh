@@ -58,7 +58,7 @@ done ;
 
 # analysis per sample
 for sample in ${samples[@]}; do
-    ${analysisScript} -s ${sample} -g ${gtfFile} -d ${genomeDir} -t $nrThreads
+    ${analysisScript} -s ${sample} -g ${gtfFile} -d ${genomeDir} -f ${counting_feature} -a ${identifying_attribute} -t $nrThreads
 done
 
 # summary of counts
