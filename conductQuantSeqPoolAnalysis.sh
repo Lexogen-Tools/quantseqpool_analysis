@@ -8,7 +8,7 @@ outputDir=$(pwd)
 
 usage() { echo "Usage: $0  [-g|--gtfFile <gtfFile>] [-d|--starGenomeDir <dir>] [-c|--rawR1 </path/to/R1.fastq.gz>] [-e|--rawR2 </path/to/R2.fastq.gz>] [-s|--samplesheet </path/to/SampleSheet.csv>] (Optional: [-o|--outputDir <dir>] [-f|--feature <counting_feature>] [-a|--attribute <grouping attribute>] [-t|--threads] <# of threads>)" 1>&2; exit 1; }
 
-OPT=$(getopt -o g:d:u:o:c:e:s:f:a:t: --long gtfFile:,starGenomeDir:,output:,rawR1:,rawR2:,sampleSheet:,feature:,attribute:,threads:, -- "$@")
+OPT=$(getopt -o g:d:o:c:e:s:f:a:t: --long gtfFile:,starGenomeDir:,output:,rawR1:,rawR2:,sampleSheet:,feature:,attribute:,threads:, -- "$@")
 
 eval set -- "$OPT"
 
