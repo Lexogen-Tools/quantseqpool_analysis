@@ -33,7 +33,7 @@ counting_feature="exon"
 identifying_attribute="gene_id"
 nrThreads=1
 
-OPT=$(getopt -o s:g:d:u:f:a:t: --long sampleName:,gtfFile:,starGenomeDir:,feature:,attribute:,threads:, -- "$@")
+OPT=$(getopt -o s:g:d:f:a:t: --long sampleName:,gtfFile:,starGenomeDir:,feature:,attribute:,threads:, -- "$@")
 
 eval set -- "$OPT"
 
