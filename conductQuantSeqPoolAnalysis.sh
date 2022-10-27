@@ -39,11 +39,17 @@ samplesheet=$(readlink -f ${samplesheet})
 outputDir=$(readlink -f ${outputDir}) ; mkdir -p ${outputDir}
 analysisScript=$(readlink -f $(dirname $(readlink -f $0))/QuantSeqPoolAnalysis.sh)
 
+echo "Reading samplesheet ${samplesheet}"
 while read -r sample fq1 fq2; do
+  echo "  read: ${sample}, ${fq1}, ${fq2}"
   samples+=("$sample")
-  fqs_R1+=("$fq1")
-  fqs_R2+=("$fq2")
+  fqs_R1+=($(realpath ${fq1}))
+  fqs_R2+=($(realpath ${fq2}))
 done < <(tail -n +2 ${samplesheet} | sed 's/,/\t/g')
+if [ ${#samples} -lt 1 ]; then
+  echo "Error: no samples in SDF file: ${samplesheet}!"
+  exit 1
+fi
 
 pushd $outputDir
 
@@ -53,21 +59,30 @@ echo "${samples[@]}"
 echo "R1 ${fqs_R1[@]}"
 echo "R2 ${fqs_R2[@]}"
 
+echo "Linking read files..."
 for (( j=0; j<${#samples[@]}; j++ ));
 do
     mkdir -p fastq/${samples[$j]} ;
-    ln -sf ${fqs_R1[$j]} fastq/${sample[$j]}/R1.fastq.gz
-    ln -sf ${fqs_R2[$j]} fastq/${sample[$j]}/R2.fastq.gz
+    ln -sf ${fqs_R1[$j]} fastq/${samples[$j]}/R1.fastq.gz
+    ln -sf ${fqs_R2[$j]} fastq/${samples[$j]}/R2.fastq.gz
 done;
 
 # analysis per sample
+echo "Analysis per sample"
 for sample in ${samples[@]}; do
+    echo "  analyzing ${sample}"
+    echo "${analysisScript} -s ${sample} -g ${gtfFile} -d ${genomeDir} -f ${counting_feature} -a ${identifying_attribute} -t $nrThreads"
     ${analysisScript} -s ${sample} -g ${gtfFile} -d ${genomeDir} -f ${counting_feature} -a ${identifying_attribute} -t $nrThreads
 done
 
 # summary of counts
+echo "Summary of counts"
 for ctype in unique all all_avg-multimapper ; do
-    (echo -e "id "${samples[@]} | sed 's/ /\t/g'; paste $(for s in ${samples[@]}; do ls counting/$s/${ctype}.tsv; done) | awk '{printf "%s",$1 ; for (ii=2;ii<=NF;ii=ii+2){printf "\t%s",$ii} ; printf "\n" }') > summary_${ctype}.tsv
+    if [ -f counting/$s/${ctype}.tsv ]; then
+        echo "Summarizing counts of ${ctype}"
+        (echo -e "id "${samples[@]} | sed 's/ /\t/g'; paste $(for s in ${samples[@]}; do ls counting/$s/${ctype}.tsv; done) | awk '{printf "%s",$1 ; for (ii=2;ii<=NF;ii=ii+2){printf "\t%s",$ii} ; printf "\n" }') > summary_${ctype}.tsv
+        echo "Summarized in ${summary_${ctype}.tsv}"
+    fi
 done
 
 popd
