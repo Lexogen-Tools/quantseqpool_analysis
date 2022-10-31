@@ -14,6 +14,10 @@ The script [QuantSeqPoolAnalysis.sh](QuantSeqPoolAnalysis.sh) uses the following
     - featureCounts (http://subread.sourceforge.net/)
     - GNU awk (https://www.gnu.org/software/gawk/)
 ```
+## MacOS requirements
+```
+   - gnu-getopt (the regular MacOS getopt does not support -- options. Please install it like described here https://formulae.brew.sh/formula/gnu-getopt)
+```
 
 The tools can either be installed and made available in the user's PATH or installed into a conda environment and used in this environment. If you use your own installations, please make sure that the versions of your installed tools correspond to the versions in [environment.yml](environment.yml). Also, please ensure that the tools are available in your path.
 
